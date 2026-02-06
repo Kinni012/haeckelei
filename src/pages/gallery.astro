@@ -1,0 +1,76 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+import Layout from '../layouts/Layout.astro';
+
+const imagesDir = path.join(process.cwd(), 'public', 'images');
+const imageExtensions = /\.(jpg|jpeg|png|gif|webp|avif)$/i;
+
+let images: string[] = [];
+try {
+  const files = fs.readdirSync(imagesDir);
+  images = files
+    .filter((f) => imageExtensions.test(f))
+    .sort()
+    .map((f) => `/images/${f}`);
+} catch {
+  // public/images doesn't exist or isn't readable
+}
+---
+
+<Layout title="Galerie – Haeckelei">
+  <main class="gallery-page">
+    <h1>Galerie</h1>
+    {images.length > 0 ? (
+      <div class="gallery">
+        {images.map((src) => (
+          <a href={src} class="gallery-item" target="_blank" rel="noopener noreferrer" title="Vollbild öffnen">
+            <img src={src} alt="" loading="lazy" decoding="async" />
+          </a>
+        ))}
+      </div>
+    ) : (
+      <p>Keine Bilder in <code>public/images/</code> gefunden.</p>
+    )}
+  </main>
+
+  <style>
+    .gallery-page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    .gallery-page h1 {
+      margin-bottom: 1.5rem;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .gallery-item {
+      display: block;
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #eee;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.2s ease;
+    }
+
+    .gallery-item:hover img {
+      transform: scale(1.03);
+    }
+  </style>
+</Layout>
