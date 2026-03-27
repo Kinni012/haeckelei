@@ -21,8 +21,8 @@ function getImagesFromFolder(folderName: string): string[] {
 
 const categories = [
   { id: 'spotlight', label: 'Häckelei' },
-  { id: 'plants', label: 'Plants' },
-  { id: 'animals', label: 'Animals' },
+  { id: 'Pflanzen', label: 'Pflanzen' },
+  { id: 'Tiere', label: 'Tiere' },
 ] as const;
 
 const galleryByCategory: Record<string, string[]> = {};
@@ -49,7 +49,17 @@ for (const cat of categories) {
     <section class="gallery-area">
       <!-- Text hier: über den Bildern, neben dem Menü -->
       <div class="home-intro">
-        <p> Ich freue mich wenn du mich über die Nummer auf der Visitenkarte über Whatsapp kontaktierst. Gerne mache ich für dich Plüschis von den Bildern in allen möglichen Farben oder individuelle Häckel Ideen für z.B. Geburtstage.</p>
+        <p> Hallihallo! </p>
+        <p> Willkommen auf meiner kleinen Webseite. </p>
+        <p> Mein Name ist Katharina und ich habe vor 1,5 Jahren während meines Studiums Häkeln als Ausgleich zu meinem Alltag für mich gefunden.</p>
+        <p>Mittlerweile habe ich meine Ausbildung erfolgreich beendet, die Wolle ist aber weiterhin ein großer Teil in meinem Leben. </p>
+
+        <p>Falls an unserem letzten Markt nicht das Richtige für dich dabei war, kannst du dir hier mein volles Sortiment ansehen. Es werden immer wieder Bilder hinzugefügt und verbessert werden, dafür brauche ich noch ein bisschen Zeit und Erfahrung.</p>
+        <p>Das Schöne am Häkeln ist, dass ich keine Massen herstellen und verkaufen kann, dafür aber auf sehr viele Wünsche und Ideen eingehen kann. Wenn also für dich Farben nicht ganz perfekt sind, dann melde dich einfach bei mir unter der Telefonnummer auf meiner Karte und du kommst im Nu zu deinem flauschigen Freund.</p>
+
+        <p>Falls du an etwas Aufwendigeren interessiert bist, wie einem Mobile, dann musst du dich mir ein bisschen Zeit geben und ein paar Ideen oder Vorstellungen bei mir melden, damit es so wird, wir du es dir wünscht. Je nach Aufwand und Details variiert dann auch der Preis.</p>
+        <p>Ich freue mich, von dir zu hören! </p>
+        
       </div>
       {categories.map((cat) => (
         <div
