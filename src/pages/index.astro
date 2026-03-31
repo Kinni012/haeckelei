@@ -4,16 +4,44 @@ import path from 'node:path';
 import Layout from '../layouts/Layout.astro';
 
 const imageExtensions = /\.(jpg|jpeg|png|gif|webp|avif)$/i;
+const videoExtensions = /\.(mp4|webm|ogg|mov)$/i;
+const textExtensions = /\.(txt|md)$/i;
 const imagesBase = path.join(process.cwd(), 'public', 'images');
 
-function getImagesFromFolder(folderName: string): string[] {
+type GalleryItem =
+  | { kind: 'image'; src: string }
+  | { kind: 'video'; src: string };
+
+function getMediaFromFolder(folderName: string): GalleryItem[] {
   const dir = path.join(imagesBase, folderName);
   try {
     const files = fs.readdirSync(dir);
     return files
-      .filter((f) => imageExtensions.test(f))
       .sort()
-      .map((f) => `/images/${folderName}/${f}`);
+      .flatMap((f) => {
+        const src = `/images/${folderName}/${f}`;
+        if (imageExtensions.test(f)) return [{ kind: 'image', src } as const];
+        if (videoExtensions.test(f)) return [{ kind: 'video', src } as const];
+        return [];
+      });
+  } catch {
+    return [];
+  }
+}
+
+function getCategoryTextFromFolder(folderName: string): string[] {
+  const dir = path.join(imagesBase, folderName);
+  try {
+    const files = fs.readdirSync(dir).filter((f) => textExtensions.test(f)).sort();
+    if (files.length === 0) return [];
+
+    const content = fs.readFileSync(path.join(dir, files[0]), 'utf8').trim();
+    if (!content) return [];
+
+    return content
+      .split(/\r?\n\s*\r?\n/)
+      .map((paragraph) => paragraph.replace(/\r?\n/g, ' ').trim())
+      .filter(Boolean);
   } catch {
     return [];
   }
@@ -23,11 +51,14 @@ const categories = [
   { id: 'spotlight', label: 'Häckelei' },
   { id: 'Pflanzen', label: 'Pflanzen' },
   { id: 'Tiere', label: 'Tiere' },
+  { id: 'Mobile', label: 'Mobile' },
 ] as const;
 
-const galleryByCategory: Record<string, string[]> = {};
+const galleryByCategory: Record<string, GalleryItem[]> = {};
+const textByCategory: Record<string, string[]> = {};
 for (const cat of categories) {
-  galleryByCategory[cat.id] = getImagesFromFolder(cat.id);
+  galleryByCategory[cat.id] = getMediaFromFolder(cat.id);
+  textByCategory[cat.id] = getCategoryTextFromFolder(cat.id);
 }
 ---
 
@@ -47,20 +78,6 @@ for (const cat of categories) {
     </nav>
 
     <section class="gallery-area">
-      <!-- Text hier: über den Bildern, neben dem Menü -->
-      <div class="home-intro">
-        <p> Hallihallo! </p>
-        <p> Willkommen auf meiner kleinen Webseite. </p>
-        <p> Mein Name ist Katharina und ich habe vor 1,5 Jahren während meines Studiums Häkeln als Ausgleich zu meinem Alltag für mich gefunden.</p>
-        <p>Mittlerweile habe ich meine Ausbildung erfolgreich beendet, die Wolle ist aber weiterhin ein großer Teil in meinem Leben. </p>
-
-        <p>Falls an unserem letzten Markt nicht das Richtige für dich dabei war, kannst du dir hier mein volles Sortiment ansehen. Es werden immer wieder Bilder hinzugefügt und verbessert werden, dafür brauche ich noch ein bisschen Zeit und Erfahrung.</p>
-        <p>Das Schöne am Häkeln ist, dass ich keine Massen herstellen und verkaufen kann, dafür aber auf sehr viele Wünsche und Ideen eingehen kann. Wenn also für dich Farben nicht ganz perfekt sind, dann melde dich einfach bei mir unter der Telefonnummer auf meiner Karte und du kommst im Nu zu deinem flauschigen Freund.</p>
-
-        <p>Falls du an etwas Aufwendigeren interessiert bist, wie einem Mobile, dann musst du dich mir ein bisschen Zeit geben und ein paar Ideen oder Vorstellungen bei mir melden, damit es so wird, wir du es dir wünscht. Je nach Aufwand und Details variiert dann auch der Preis.</p>
-        <p>Ich freue mich, von dir zu hören! </p>
-        
-      </div>
       {categories.map((cat) => (
         <div
           class="gallery-panel"
@@ -68,16 +85,35 @@ for (const cat of categories) {
           hidden={cat.id !== 'spotlight'}
           role="tabpanel"
         >
+          <div class="category-intro" hidden={textByCategory[cat.id].length === 0}>
+            {textByCategory[cat.id].map((paragraph) => (
+              <p>{paragraph}</p>
+            ))}
+          </div>
           {galleryByCategory[cat.id].length > 0 ? (
             <div class="gallery">
-              {galleryByCategory[cat.id].map((src) => (
-                <button type="button" class="gallery-item" data-src={src} title="Vergrößern">
-                  <img src={src} alt="" loading="lazy" decoding="async" />
-                </button>
+              {galleryByCategory[cat.id].map((item) => (
+                item.kind === 'image' ? (
+                  <button type="button" class="gallery-item" data-src={item.src} title="Vergrößern">
+                    <img src={item.src} alt="" loading="lazy" decoding="async" />
+                  </button>
+                ) : (
+                  <div class="gallery-item gallery-video-wrap">
+                    <video
+                      class="gallery-video"
+                      src={item.src}
+                      muted
+                      loop
+                      playsinline
+                      controls
+                      preload="metadata"
+                    />
+                  </div>
+                )
               ))}
             </div>
           ) : (
-            <p class="gallery-empty">Noch keine Bilder in <code>images/{cat.id}/</code>.</p>
+            <p class="gallery-empty">Noch keine Medien in <code>images/{cat.id}/</code>.</p>
           )}
         </div>
       ))}
@@ -90,6 +126,69 @@ for (const cat of categories) {
   </div>
 
   <script>
+    function parseParagraphs(content: string): string[] {
+      return content
+        .trim()
+        .split(/\r?\n\s*\r?\n/)
+        .map((paragraph) => paragraph.replace(/\r?\n/g, ' ').trim())
+        .filter(Boolean);
+    }
+
+    async function ensureCategoryText(activeCategory: string) {
+      const panel = document.querySelector(`.gallery-panel[data-category="${activeCategory}"]`) as HTMLElement | null;
+      if (!panel) return;
+
+      const intro = panel.querySelector('.category-intro') as HTMLElement | null;
+      if (!intro) return;
+
+      try {
+        const response = await fetch(`/images/${activeCategory}/intro.txt`, { cache: 'no-store' });
+        if (!response.ok) {
+          intro.innerHTML = '';
+          intro.hidden = true;
+          return;
+        }
+
+        const paragraphs = parseParagraphs(await response.text());
+        if (paragraphs.length === 0) {
+          intro.innerHTML = '';
+          intro.hidden = true;
+          return;
+        }
+
+        intro.innerHTML = '';
+        for (const paragraph of paragraphs) {
+          const p = document.createElement('p');
+          p.textContent = paragraph;
+          intro.appendChild(p);
+        }
+        intro.hidden = false;
+      } catch {
+        // Ignore missing file/network errors.
+      }
+    }
+
+    function syncCategoryVideoPlayback(activeCategory: string) {
+      document.querySelectorAll('.gallery-panel').forEach((panel) => {
+        const panelEl = panel as HTMLElement;
+        const isActive = panelEl.dataset.category === activeCategory;
+        panelEl.querySelectorAll('video').forEach((videoEl) => {
+          const video = videoEl as HTMLVideoElement;
+          if (!isActive) {
+            video.pause();
+            video.currentTime = 0;
+            return;
+          }
+          const playPromise = video.play();
+          if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {
+              // Browsers can block autoplay in some situations.
+            });
+          }
+        });
+      });
+    }
+
     document.querySelectorAll('.menu-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const category = (btn as HTMLButtonElement).dataset.category;
@@ -101,8 +200,14 @@ for (const cat of categories) {
         document.querySelectorAll('.gallery-panel').forEach((panel) => {
           (panel as HTMLElement).hidden = (panel as HTMLElement).dataset.category !== category;
         });
+
+        syncCategoryVideoPlayback(category);
+        void ensureCategoryText(category);
       });
     });
+
+    syncCategoryVideoPlayback('spotlight');
+    void ensureCategoryText('spotlight');
 
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = lightbox?.querySelector('.lightbox-img') as HTMLImageElement;
@@ -149,7 +254,7 @@ for (const cat of categories) {
       padding: 1.5rem;
     }
 
-    .home-intro {
+    .category-intro {
       margin-bottom: 1.5rem;
       padding: 1.25rem 1.5rem;
       background: #ebe5d4;
@@ -158,7 +263,7 @@ for (const cat of categories) {
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
 
-    .home-intro p {
+    .category-intro p {
       margin: 0;
       line-height: 1.6;
       color: #3d3530;
@@ -236,6 +341,18 @@ for (const cat of categories) {
 
     .gallery-item:hover img {
       transform: scale(1.03);
+    }
+
+    .gallery-video-wrap {
+      cursor: default;
+      background: #000;
+    }
+
+    .gallery-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .lightbox {
