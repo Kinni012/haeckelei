@@ -17,6 +17,29 @@ const { title } = Astro.props;
   </head>
   <body>
     <slot />
+    <script is:inline>
+      (() => {
+        // Make the first "Back" gesture scroll to top instead of leaving.
+        // If already at the top, the next Back behaves normally.
+        try {
+          history.pushState({ __scrollTopOnBack: true }, '', location.href);
+        } catch {
+          // Ignore environments where history state is unavailable.
+        }
+
+        window.addEventListener('popstate', () => {
+          // Only intercept when not already at the top.
+          if ((window.scrollY || 0) > 8) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            try {
+              history.pushState({ __scrollTopOnBack: true }, '', location.href);
+            } catch {
+              // Ignore.
+            }
+          }
+        });
+      })();
+    </script>
   </body>
 </html>
 
