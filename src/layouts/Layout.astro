@@ -27,20 +27,20 @@ const { title } = Astro.props;
         // back/forward cache without re-running scripts. To keep behavior
         // consistent, we (re)initialize the handler on page show.
 
+        function ensureSentinelEntry() {
+          const st = history.state;
+          const hasSentinel = !!(st && typeof st === 'object' && st.__backTopSentinel === true);
+          if (hasSentinel) return;
+          try {
+            history.pushState({ __backTopSentinel: true }, '', location.href);
+          } catch {
+            // Ignore environments where history state is unavailable.
+          }
+        }
+
         function initBackScrollHandler() {
           if (window.__backScrollHandlerInitialized) return;
           window.__backScrollHandlerInitialized = true;
-
-          function ensureSentinelEntry() {
-            const st = history.state;
-            const hasSentinel = !!(st && typeof st === 'object' && st.__backTopSentinel === true);
-            if (hasSentinel) return;
-            try {
-              history.pushState({ __backTopSentinel: true }, '', location.href);
-            } catch {
-              // Ignore environments where history state is unavailable.
-            }
-          }
 
           // Ensure we have a duplicate entry to intercept Back.
           ensureSentinelEntry();
@@ -65,7 +65,9 @@ const { title } = Astro.props;
               window.scrollTo(0, 0);
 
               // Stay on this page by restoring the sentinel entry.
-              ensureSentinelEntry();
+              // (Defer a tick to avoid some mobile browsers ignoring pushState
+              // during the same event turn.)
+              setTimeout(() => ensureSentinelEntry(), 0);
               return;
             }
 
@@ -75,14 +77,14 @@ const { title } = Astro.props;
             isAutoExiting = true;
             history.back();
           });
-
-          // Re-arm when returning from bfcache or history restores.
-          window.addEventListener('pageshow', () => {
-            ensureSentinelEntry();
-          });
         }
 
         initBackScrollHandler();
+        // Re-arm when returning from bfcache or history restores.
+        // (Do it async: some browsers ignore pushState inside pageshow.)
+        window.addEventListener('pageshow', () => {
+          setTimeout(() => ensureSentinelEntry(), 0);
+        });
       })();
     </script>
   </body>
