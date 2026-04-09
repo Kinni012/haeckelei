@@ -17,8 +17,31 @@ const { title } = Astro.props;
   </head>
   <body>
     <slot />
+    <button id="scrollTopBtn" class="scroll-top-btn" type="button" aria-label="Nach oben" hidden>
+      ↑
+    </button>
     <script is:inline>
       (() => {
+        const scrollTopBtn = document.getElementById('scrollTopBtn');
+        const topThreshold = 8;
+
+        function updateScrollTopButton() {
+          if (!scrollTopBtn) return;
+          const show = (window.scrollY || 0) > topThreshold;
+          scrollTopBtn.hidden = !show;
+          scrollTopBtn.setAttribute('aria-hidden', String(!show));
+        }
+
+        if (scrollTopBtn) {
+          scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+        }
+
+        window.addEventListener('scroll', updateScrollTopButton, { passive: true });
+        window.addEventListener('resize', updateScrollTopButton, { passive: true });
+        updateScrollTopButton();
+
         // Mobile back-button / back-gesture handling:
         // - If scrolled down, pressing Back should jump to absolute top (0,0) and stay.
         // - If already at absolute top, pressing Back should leave normally.
@@ -84,9 +107,42 @@ const { title } = Astro.props;
         // (Do it async: some browsers ignore pushState inside pageshow.)
         window.addEventListener('pageshow', () => {
           setTimeout(() => ensureSentinelEntry(), 0);
+          updateScrollTopButton();
         });
       })();
     </script>
+    <style>
+      .scroll-top-btn {
+        position: fixed;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 9999;
+        width: 2.75rem;
+        height: 2.75rem;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font-size: 1.3rem;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .scroll-top-btn:active {
+        transform: scale(0.98);
+      }
+
+      .scroll-top-btn:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+      }
+
+      .scroll-top-btn[hidden] {
+        display: none !important;
+      }
+    </style>
   </body>
 </html>
 
